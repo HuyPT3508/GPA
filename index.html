@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPA Auto Calculator - HCMUT</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar / Header Area -->
+        <header class="main-header">
+            <div class="logo-section">
+                <div class="logo-icon"><i class="fa-solid fa-graduation-cap"></i></div>
+                <div class="logo-text">
+                    <h1>Tính GPA</h1>
+                </div>
+            </div>
+            
+            <!-- Overall Stats Grid -->
+            <div class="overall-stats">
+                <div class="stat-card academic">
+                    <div class="stat-icon"><i class="fa-solid fa-book-bookmark"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label">ĐTBTL Tích lũy (Học tập)</span>
+                        <div class="stat-value-container">
+                            <span class="stat-value" id="overall-academic-gpa">0.00</span>
+                            <span class="stat-scale">/ 4.00</span>
+                        </div>
+                        <span class="stat-subtext" id="overall-academic-gpa-10">Thang 10: 0.00</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card scholarship">
+                    <div class="stat-icon"><i class="fa-solid fa-award"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label">ĐTBTL Học bổng (Làm tròn)</span>
+                        <div class="stat-value-container">
+                            <span class="stat-value" id="overall-scholarship-gpa">0.00</span>
+                            <span class="stat-scale">/ 4.00</span>
+                        </div>
+                        <span class="stat-subtext" id="overall-classification">Xếp loại: --</span>
+                    </div>
+                </div>
+
+                <div class="stat-card credits">
+                    <div class="stat-icon"><i class="fa-solid fa-chart-simple"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label">Tổng Tín Chỉ Tích Lũy</span>
+                        <div class="stat-value-container">
+                            <span class="stat-value" id="overall-credits">0</span>
+                            <span class="stat-scale" id="total-curriculum-credits">/ 128 TC</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="credits-progress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Dashboard Content -->
+        <main class="dashboard-content">
+            <!-- Left Panel: Current Semester Grade Input -->
+            <section class="panel current-semester-panel">
+                <div class="panel-header">
+                    <div class="panel-title-wrapper">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        <h2>Nhập Điểm Học Kỳ Hiện Tại</h2>
+                    </div>
+                    <span class="sem-badge" id="current-sem-title">Học kỳ 2 Năm học 2024 - 2025</span>
+                </div>
+                
+                <div class="panel-body">
+                    <p class="section-desc">Nhập điểm hệ 10 của các môn học bên dưới. Điểm chữ và GPA sẽ tự động được cập nhật.</p>
+                    
+                    <!-- Current Semester Courses List -->
+                    <div class="courses-input-list" id="current-courses-list">
+                        <!-- Dynamic Course Input Rows Go Here -->
+                    </div>
+                    
+                    <!-- Actions Row -->
+                    <div class="input-actions">
+                        <button class="btn btn-secondary" id="btn-add-elective">
+                            <i class="fa-solid fa-plus"></i> Thêm Môn Tự Chọn / Học Lại
+                        </button>
+                        <button class="btn btn-primary" id="btn-clear-grades">
+                            <i class="fa-solid fa-rotate-left"></i> Xóa Điểm Kỳ Này
+                        </button>
+                        <button class="btn btn-accent" id="btn-next-semester">
+                            <i class="fa-solid fa-forward-step"></i> Sang Học Kỳ Mới
+                        </button>
+                        <button class="btn btn-secondary" id="btn-reset-all" title="Khôi phục toàn bộ dữ liệu gốc ban đầu">
+                            <i class="fa-solid fa-trash-arrow-up"></i> Reset Dữ Liệu
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Current Semester Summary Card -->
+                <div class="sem-summary-card">
+                    <h3>Kết quả học kỳ này (Dự kiến)</h3>
+                    <div class="sem-summary-grid">
+                        <div class="sem-sum-item">
+                            <span class="sum-label">ĐTB Học kỳ (Học tập)</span>
+                            <span class="sum-value" id="current-academic-gpa">0.00</span>
+                        </div>
+                        <div class="sem-sum-item">
+                            <span class="sum-label">ĐTB Học kỳ (Học bổng)</span>
+                            <span class="sum-value" id="current-scholarship-gpa">0.00</span>
+                        </div>
+                        <div class="sem-sum-item">
+                            <span class="sum-label">Số Tín chỉ Học kỳ</span>
+                            <span class="sum-value" id="current-credits">0 TC</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Panel: Academic History -->
+            <section class="panel history-panel">
+                <div class="panel-header">
+                    <div class="panel-title-wrapper">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                        <h2>Lịch Sử Học Tập & Quy Đổi</h2>
+                    </div>
+                </div>
+                
+                <div class="panel-body">
+                    <!-- History Accordion -->
+                    <div class="history-accordion" id="history-accordion">
+                        <!-- Dynamic Semester Accordions Go Here -->
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <!-- Retake Notification Banner (Floating / Embedded) -->
+        <footer class="retake-visualizer-section" id="retake-visualizer">
+            <div class="visualizer-header">
+                <i class="fa-solid fa-circle-info"></i>
+                <h3>Bảng Theo Dõi Thay Thế Học Lại (Học tập / Cải thiện)</h3>
+            </div>
+            <div class="visualizer-body" id="retake-list">
+                <!-- Dynamic Retake Mappings Show Here -->
+                <p class="no-retakes-text">Chưa phát hiện môn học lại nào được nhập điểm.</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Elective Course Modal -->
+    <div class="modal-overlay" id="elective-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Thêm Môn Học Mới / Học Lại</h3>
+                <button class="close-modal" id="btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="search-course">Tìm kiếm theo mã môn hoặc tên môn:</label>
+                    <div class="search-input-wrapper">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" id="search-course" placeholder="Ví dụ: MT1005 hoặc Giải tích 2...">
+                    </div>
+                </div>
+                
+                <div class="search-results-container">
+                    <ul class="search-results" id="search-results-list">
+                        <!-- Search Results Go Here -->
+                    </ul>
+                </div>
+                
+                <div class="custom-course-divider"><span>Hoặc tự thêm môn mới</span></div>
+                
+                <div class="custom-course-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="custom-code">Mã Môn Học</label>
+                            <input type="text" id="custom-code" placeholder="Ví dụ: CO3049">
+                        </div>
+                        <div class="form-group flex-2">
+                            <label for="custom-name">Tên Môn Học</label>
+                            <input type="text" id="custom-name" placeholder="Ví dụ: Lập trình Web">
+                        </div>
+                        <div class="form-group">
+                            <label for="custom-credits">Số Tín Chỉ</label>
+                            <input type="number" id="custom-credits" min="0" max="10" value="3">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" id="btn-add-custom-submit">
+                        <i class="fa-solid fa-plus"></i> Thêm Môn Này
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load data file first, then application logic -->
+    <script src="data.js"></script>
+    <script src="index.js"></script>
+</body>
+</html>
