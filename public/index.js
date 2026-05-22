@@ -85,6 +85,145 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnNextSemesterEl = document.getElementById("btn-next-semester");
     const btnResetAllEl = document.getElementById("btn-reset-all");
 
+    // Auth DOM Elements
+    const userGreetingEl = document.getElementById("user-greeting");
+    const usernameDisplayEl = document.getElementById("username-display");
+    const btnLoginTriggerEl = document.getElementById("btn-login-trigger");
+    const btnLogoutEl = document.getElementById("btn-logout");
+    const authModalEl = document.getElementById("auth-modal");
+    const btnCloseAuthModalEl = document.getElementById("btn-close-auth-modal");
+    const authFormEl = document.getElementById("auth-form");
+    const authUsernameEl = document.getElementById("auth-username");
+    const authPasswordEl = document.getElementById("auth-password");
+    const authErrorMsgEl = document.getElementById("auth-error-msg");
+    const btnAuthSubmitEl = document.getElementById("btn-auth-submit");
+    const authModalTitleEl = document.getElementById("auth-modal-title");
+    const authToggleTextEl = document.getElementById("auth-toggle-text");
+    const authToggleLinkEl = document.getElementById("auth-toggle-link");
+
+    let authMode = "login"; // "login" or "register"
+    let authToken = localStorage.getItem("gpa_auth_token") || null;
+    let authUsername = localStorage.getItem("gpa_auth_username") || null;
+
+    // Debounce cloud saving
+    let saveTimeout = null;
+    function triggerCloudSave() {
+        if (!authToken) return; // offline
+        if (saveTimeout) clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(async () => {
+            await saveGradesToCloud();
+        }, 800);
+    }
+
+    async function apiRequest(endpoint, options = {}) {
+        const headers = {
+            'Content-Type': 'application/json',
+            ...(options.headers || {})
+        };
+        if (authToken) {
+            headers['Authorization'] = `Bearer ${authToken}`;
+        }
+        const res = await fetch(endpoint, {
+            ...options,
+            headers
+        });
+        if (res.status === 401) {
+            logoutUser();
+            throw new Error("Phiên làm việc hết hạn. Vui lòng đăng nhập lại.");
+        }
+        return res;
+    }
+
+    async function checkAuthState() {
+        if (!authToken) {
+            updateAuthUI(false);
+            return;
+        }
+        try {
+            const res = await apiRequest("/api/auth/me");
+            if (res.ok) {
+                const data = await res.json();
+                authUsername = data.username;
+                localStorage.setItem("gpa_auth_username", authUsername);
+                updateAuthUI(true);
+                await fetchAndApplyGrades();
+            } else {
+                logoutUser();
+            }
+        } catch (err) {
+            console.error("Check auth error:", err);
+            updateAuthUI(false);
+        }
+    }
+
+    function updateAuthUI(isLoggedIn) {
+        if (isLoggedIn) {
+            userGreetingEl.style.display = "inline";
+            usernameDisplayEl.textContent = authUsername;
+            btnLoginTriggerEl.style.display = "none";
+            btnLogoutEl.style.display = "inline";
+        } else {
+            userGreetingEl.style.display = "none";
+            btnLoginTriggerEl.style.display = "inline";
+            btnLogoutEl.style.display = "none";
+        }
+    }
+
+    function logoutUser() {
+        authToken = null;
+        authUsername = null;
+        localStorage.removeItem("gpa_auth_token");
+        localStorage.removeItem("gpa_auth_username");
+        updateAuthUI(false);
+        alert("Đã đăng xuất tài khoản. Dữ liệu thay đổi từ bây giờ sẽ chỉ lưu trên thiết bị của bạn.");
+    }
+
+    async function fetchAndApplyGrades() {
+        try {
+            const res = await apiRequest("/api/grades");
+            if (res.ok) {
+                const { stateData } = await res.json();
+                if (stateData) {
+                    appState.historySemesters = stateData.historySemesters || [];
+                    appState.currentSemesterName = stateData.currentSemesterName || "";
+                    appState.currentSemesterCourses = stateData.currentSemesterCourses || [];
+                    
+                    localStorage.setItem("gpa_history_semesters", JSON.stringify(appState.historySemesters));
+                    localStorage.setItem("gpa_current_semester_name", appState.currentSemesterName);
+                    localStorage.setItem("gpa_current_grades", JSON.stringify(appState.currentSemesterCourses));
+                    
+                    currentSemTitleEl.textContent = appState.currentSemesterName;
+                    renderCurrentSemester();
+                    const calcResults = calculateGPA();
+                    renderHistory(calcResults.semesterStats, calcResults.allAttempts);
+                } else {
+                    await saveGradesToCloud();
+                }
+            }
+        } catch (err) {
+            console.error("Fetch grades error:", err);
+        }
+    }
+
+    async function saveGradesToCloud() {
+        if (!authToken) return;
+        try {
+            const payload = {
+                stateData: {
+                    historySemesters: appState.historySemesters,
+                    currentSemesterName: appState.currentSemesterName,
+                    currentSemesterCourses: appState.currentSemesterCourses
+                }
+            };
+            await apiRequest("/api/grades", {
+                method: "POST",
+                body: JSON.stringify(payload)
+            });
+        } catch (err) {
+            console.error("Save grades to cloud error:", err);
+        }
+    }
+
     // Set Header Info
     currentSemTitleEl.textContent = appState.currentSemesterName;
 
@@ -516,6 +655,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 
                 // Save to localStorage
                 localStorage.setItem("gpa_current_grades", JSON.stringify(appState.currentSemesterCourses));
+                triggerCloudSave();
                 
                 // Recalculate and update current row badge without full re-render for performance
                 const calcResults = calculateGPA();
@@ -536,6 +676,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const idx = parseInt(e.currentTarget.dataset.index);
                 appState.currentSemesterCourses.splice(idx, 1);
                 localStorage.setItem("gpa_current_grades", JSON.stringify(appState.currentSemesterCourses));
+                triggerCloudSave();
                 renderCurrentSemester();
                 const calcResults = calculateGPA();
                 renderHistory(calcResults.semesterStats, calcResults.allAttempts);
@@ -729,6 +870,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     });
                     
                     localStorage.setItem("gpa_current_grades", JSON.stringify(appState.currentSemesterCourses));
+                    triggerCloudSave();
                     renderCurrentSemester();
                     const calcResults = calculateGPA();
                     renderHistory(calcResults.semesterStats, calcResults.allAttempts);
@@ -768,6 +910,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         localStorage.setItem("gpa_current_grades", JSON.stringify(appState.currentSemesterCourses));
+        triggerCloudSave();
         
         // Reset form
         customCodeEl.value = "";
@@ -788,6 +931,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 c.grade = "";
             });
             localStorage.setItem("gpa_current_grades", JSON.stringify(appState.currentSemesterCourses));
+            triggerCloudSave();
             renderCurrentSemester();
             const calcResults = calculateGPA();
             renderHistory(calcResults.semesterStats, calcResults.allAttempts);
@@ -850,6 +994,7 @@ document.addEventListener("DOMContentLoaded", () => {
             localStorage.setItem("gpa_history_semesters", JSON.stringify(appState.historySemesters));
             localStorage.setItem("gpa_current_semester_name", appState.currentSemesterName);
             localStorage.setItem("gpa_current_grades", JSON.stringify(appState.currentSemesterCourses));
+            triggerCloudSave();
 
             // 4. Update UI
             currentSemTitleEl.textContent = appState.currentSemesterName;
@@ -871,13 +1016,110 @@ document.addEventListener("DOMContentLoaded", () => {
             localStorage.removeItem("gpa_current_semester_name");
             localStorage.removeItem("gpa_current_grades");
 
+            if (authToken) {
+                try {
+                    await apiRequest("/api/grades/reset", { method: "POST" });
+                } catch (err) {
+                    console.error("Failed to reset cloud database:", err);
+                }
+            }
+
             // Reload page to reinitialize state
             window.location.reload();
         });
     }
 
+    // Auth Event Listeners
+    btnLoginTriggerEl.addEventListener("click", () => {
+        authMode = "login";
+        authModalTitleEl.textContent = "Đăng Nhập Tài Khoản";
+        btnAuthSubmitEl.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Đăng Nhập';
+        authToggleTextEl.textContent = "Chưa có tài khoản?";
+        authToggleLinkEl.textContent = "Đăng ký ngay";
+        authErrorMsgEl.style.display = "none";
+        authUsernameEl.value = "";
+        authPasswordEl.value = "";
+        authModalEl.classList.add("active");
+    });
+
+    btnCloseAuthModalEl.addEventListener("click", () => {
+        authModalEl.classList.remove("active");
+    });
+
+    authModalEl.addEventListener("click", (e) => {
+        if (e.target === authModalEl) {
+            authModalEl.classList.remove("active");
+        }
+    });
+
+    authToggleLinkEl.addEventListener("click", (e) => {
+        e.preventDefault();
+        if (authMode === "login") {
+            authMode = "register";
+            authModalTitleEl.textContent = "Đăng Ký Tài Khoản";
+            btnAuthSubmitEl.innerHTML = '<i class="fa-solid fa-user-plus"></i> Đăng Ký';
+            authToggleTextEl.textContent = "Đã có tài khoản?";
+            authToggleLinkEl.textContent = "Đăng nhập";
+        } else {
+            authMode = "login";
+            authModalTitleEl.textContent = "Đăng Nhập Tài Khoản";
+            btnAuthSubmitEl.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Đăng Nhập';
+            authToggleTextEl.textContent = "Chưa có tài khoản?";
+            authToggleLinkEl.textContent = "Đăng ký ngay";
+        }
+        authErrorMsgEl.style.display = "none";
+    });
+
+    authFormEl.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const username = authUsernameEl.value.trim();
+        const password = authPasswordEl.value;
+        
+        authErrorMsgEl.style.display = "none";
+        btnAuthSubmitEl.disabled = true;
+        
+        const endpoint = authMode === "login" ? "/api/auth/login" : "/api/auth/register";
+        
+        try {
+            const res = await fetch(endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                authToken = data.token;
+                authUsername = data.username;
+                localStorage.setItem("gpa_auth_token", authToken);
+                localStorage.setItem("gpa_auth_username", authUsername);
+                
+                updateAuthUI(true);
+                authModalEl.classList.remove("active");
+                
+                await fetchAndApplyGrades();
+            } else {
+                authErrorMsgEl.textContent = data.message || "Đã xảy ra lỗi.";
+                authErrorMsgEl.style.display = "block";
+            }
+        } catch (err) {
+            console.error("Auth error:", err);
+            authErrorMsgEl.textContent = "Lỗi kết nối đến máy chủ.";
+            authErrorMsgEl.style.display = "block";
+        } finally {
+            btnAuthSubmitEl.disabled = false;
+        }
+    });
+
+    btnLogoutEl.addEventListener("click", () => {
+        if (confirm("Bạn có chắc chắn muốn đăng xuất không?")) {
+            logoutUser();
+        }
+    });
+
     // 7. Initial Run
     renderCurrentSemester();
     const { semesterStats, allAttempts } = calculateGPA();
     renderHistory(semesterStats, allAttempts);
+    checkAuthState();
 });
