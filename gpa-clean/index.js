@@ -876,6 +876,70 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Export Data Action
+    const btnExportEl = document.getElementById("btn-export");
+    if (btnExportEl) {
+        btnExportEl.addEventListener("click", () => {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+                historySemesters: appState.historySemesters,
+                currentSemesterName: appState.currentSemesterName,
+                currentSemesterCourses: appState.currentSemesterCourses
+            }, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `gpa_backup_${new Date().toISOString().slice(0, 10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        });
+    }
+
+    // Import Data Action
+    const btnImportEl = document.getElementById("btn-import");
+    if (btnImportEl) {
+        btnImportEl.addEventListener("click", () => {
+            const fileInput = document.createElement("input");
+            fileInput.type = "file";
+            fileInput.accept = ".json";
+            fileInput.style.display = "none";
+            fileInput.addEventListener("change", (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const importedData = JSON.parse(e.target.result);
+                        if (importedData.currentSemesterName && Array.isArray(importedData.currentSemesterCourses) && Array.isArray(importedData.historySemesters)) {
+                            appState.historySemesters = importedData.historySemesters;
+                            appState.currentSemesterName = importedData.currentSemesterName;
+                            appState.currentSemesterCourses = importedData.currentSemesterCourses;
+                            
+                            // Save to localStorage
+                            localStorage.setItem("gpa_history_semesters", JSON.stringify(appState.historySemesters));
+                            localStorage.setItem("gpa_current_semester_name", appState.currentSemesterName);
+                            localStorage.setItem("gpa_current_grades", JSON.stringify(appState.currentSemesterCourses));
+                            
+                            // Update UI
+                            currentSemTitleEl.textContent = appState.currentSemesterName;
+                            renderCurrentSemester();
+                            const calcResults = calculateGPA();
+                            renderHistory(calcResults.semesterStats, calcResults.allAttempts);
+                            alert("Nhập dữ liệu thành công!");
+                        } else {
+                            alert("Định dạng file sao lưu không hợp lệ!");
+                        }
+                    } catch (err) {
+                        alert("Không thể đọc tệp tin. Vui lòng kiểm tra lại file!");
+                    }
+                };
+                reader.readAsText(file);
+            });
+            document.body.appendChild(fileInput);
+            fileInput.click();
+            fileInput.remove();
+        });
+    }
+
     // 7. Initial Run
     renderCurrentSemester();
     const { semesterStats, allAttempts } = calculateGPA();
